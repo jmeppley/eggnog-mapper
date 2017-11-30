@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 
+import logging
 import sys
 import os
 import time
@@ -15,6 +16,7 @@ from . import search
 CHILD_PROC = None
 MASTER = None
 WORKER = None
+logger = logging.getLogger(__name__)
 
 def server_up(host, port):
     import socket
@@ -54,12 +56,14 @@ def load_server(dbpath, client_port, worker_port, cpu, output=None):
     
     def start_master():
         cmd = HMMPGMD +' --master --cport %d --wport %s --hmmdb %s' %(client_port, worker_port, dbpath)
+        logger.debug("Launching master with command:\n%s", cmd)
         CHILD_PROC = subprocess.Popen(cmd.split(), shell=False, stderr=OUT, stdout=OUT)
         while 1:
             time.sleep(60)
               
     def start_worker():
         cmd = HMMPGMD +' --worker localhost --wport %s --cpu %d' %(worker_port, cpu)
+        logger.debug("Launching worker with command:\n%s", cmd)
         CHILD_PROC = subprocess.Popen(cmd.split(), shell=False, stderr=OUT, stdout=OUT)
         while 1:
             time.sleep(60)

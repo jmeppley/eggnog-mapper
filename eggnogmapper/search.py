@@ -11,6 +11,7 @@ import time
 import subprocess
 import cPickle
 import multiprocessing
+import itertools
 
 from tempfile import NamedTemporaryFile, mkdtemp
 import uuid
@@ -157,29 +158,49 @@ def iter_hmm_hits(hmmfile, host, port, dbtype="hmmdb", evalue_thr=None,
             yield name, etime, hits, hmm_leng, None
 
 
+def do_scan_hit(big_tuple):
+    " For each fasta seq, query server and return result "
+    seq_tuple, arg_tuple = big_tuple
+    (name, seq) = seq_tuple
+    (host, port, dbtype, evalue_thr,
+     score_thr, max_hits, maxseqlen, fixed_Z, skip) = arg_tuple
+    if skip and name in skip:
+        return None
+
+    if maxseqlen and len(seq) > maxseqlen:
+        return  name, -1, [], len(seq), None
+
+    if not seq:
+        return None
+
+    seq = re.sub("-.", "", seq)
+    data = '@--%s 1\n>%s\n%s\n//' % (dbtype, name, seq)
+    etime, hits = scan_hits(data, host, port, evalue_thr=evalue_thr,
+                            score_thr=score_thr, max_hits=max_hits,
+                            fixed_Z=fixed_Z)
+
+    #max_score = sum([B62_IDENTITIES.get(nt, 0) for nt in seq])
+    return name, etime, hits, len(seq), None
+
+
 def iter_seq_hits(src, translate, host, port, dbtype, evalue_thr=None,
                   score_thr=None, max_hits=None, maxseqlen=None, fixed_Z=None,
-                  skip=None):
+                  skip=None, cpus=1):
+    # run in multiple threads
+    pool = multiprocessing.Pool(cpus)
+    arg_tuple = (host, port, dbtype, evalue_thr,
+                 score_thr, max_hits, maxseqlen, fixed_Z, skip)
+    for r in pool.imap(do_scan_hit,
+                       zip(seqio.iter_fasta_seqs(src, translate=translate),
+                           itertools.cycle([arg_tuple,])),
+                       chunksize=100,
+                      ):
+        if r is not None:
+            yield r
 
-    for seqnum, (name, seq) in enumerate(seqio.iter_fasta_seqs(src, translate=translate)):
-        if skip and name in skip:
-            continue
 
-        if maxseqlen and len(seq) > maxseqlen:
-            yield name, -1, [], len(seq), None
-            continue
 
-        if not seq:
-            continue
 
-        seq = re.sub("-.", "", seq)
-        data = '@--%s 1\n>%s\n%s\n//' % (dbtype, name, seq)
-        etime, hits = scan_hits(data, host, port, evalue_thr=evalue_thr,
-                                score_thr=score_thr, max_hits=max_hits,
-                                fixed_Z=fixed_Z)
-
-        #max_score = sum([B62_IDENTITIES.get(nt, 0) for nt in seq])
-        yield name, etime, hits, len(seq), None
 
 
 

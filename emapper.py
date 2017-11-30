@@ -12,6 +12,7 @@ from tempfile import mkdtemp
 import uuid
 import shutil
 import subprocess
+import logging
 
 SCRIPT_PATH = os.path.split(os.path.realpath(os.path.abspath(__file__)))[0]
 sys.path.insert(0, SCRIPT_PATH)
@@ -993,8 +994,21 @@ if __name__ == "__main__":
 
 
     parser.add_argument('--version', action='store_true')
+    parser.add_argument("-v", "--verbose",
+                        action="count", dest="verbose", default=1,
+                        help="Print log messages. Use twice for debugging")
+    parser.add_argument(
+        "-q",
+        '--quiet',
+        dest='verbose',
+        action="store_const",
+        const=0,
+        help="Suppress info and warnings. Only print fatal messages")
+
 
     args = parse_args(parser)
+
+    setup_logging(args)
 
     _total_time = time.time()
     try:

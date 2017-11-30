@@ -9,6 +9,7 @@ from os.path import exists as pexists
 import gzip
 import shutil
 import errno
+import logging
 from subprocess import Popen, PIPE
 
 try:
@@ -271,3 +272,30 @@ def existing_dir(dname):
         return dname
     else:
         raise TypeError('not a valid directory "%s"' %dname)
+
+DEFAULT_LOGGER_FORMAT =\
+    ':%(asctime)s::%(levelname)s:\n%(message)s'
+
+
+def setup_logging(parsed_args, stream=sys.stderr,
+                  format=DEFAULT_LOGGER_FORMAT):
+    """
+    Do some basic setup common to all scripts.
+
+    Given:
+        an parsed_arguments object with:
+            an integer "verbose" value between 0(silent) and 3(debug)
+    Set up a logger. Accepts stream and format key word arguments
+    """
+    verbose = parsed_args.verbose
+    if verbose == 0:
+        loglevel = logging.ERROR
+    elif verbose == 1:
+        loglevel = logging.WARN
+    elif verbose == 2:
+        loglevel = logging.INFO
+    elif verbose >= 3:
+        loglevel = logging.DEBUG
+    logging.basicConfig(stream=stream, level=loglevel, format=format)
+    logging.info("Log level set to %r(%d)" % (loglevel, verbose))
+
